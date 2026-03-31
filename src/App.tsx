@@ -317,12 +317,12 @@ function App() {
                         </div>
                     </div>
                     <div className="p-2 space-y-1">
-                      {user?.email === ADMIN_EMAIL && (
-                        <button onClick={() => { setIsAdminMode(true); setIsProfileOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors">
+                      {user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim() && (
+                        <button onClick={() => { setIsAdminMode(true); setIsProfileOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-all">
                           <Edit2 size={16} /> Admin Dashboard
                         </button>
                       )}
-                      <button onClick={async () => { await logoutUser(); localStorage.removeItem('nimcet_user_v1'); setUser(null); setIsProfileOpen(false); setIsAuthModalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
+                      <button onClick={async () => { await logoutUser(); localStorage.removeItem('nimcet_user_v1'); setUser(null); setIsProfileOpen(false); setIsAuthModalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all">
                         <LogOut size={16} /> Logout
                       </button>
                     </div>
