@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Menu, Search, Bell, GraduationCap, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Database, ExternalLink, Maximize } from 'lucide-react';
+import { Play, Menu, Search, Bell, GraduationCap, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Database, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import { Channel, Playlist, Video, channelsData } from './data';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,6 +68,58 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Inject YouTube API globally once
+  useEffect(() => {
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, []);
+
+  // Handle Hardware Back Button
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const state = e.state;
+      if (state) {
+        // Restore state from history
+        if (state.activeVideoId) {
+          // If we have video info in state, we could restore it, 
+          // but usually back means going up one level.
+        } else if (state.activePlaylistId) {
+          setActiveVideo(null);
+        } else if (state.activeChannelId) {
+          setActiveVideo(null);
+          setActivePlaylist(null);
+        } else {
+          setActiveVideo(null);
+          setActivePlaylist(null);
+          setActiveChannel(channels[0] || null);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [channels]);
+
+  // Push state on navigation
+  useEffect(() => {
+    const currentState = window.history.state;
+    const newState = {
+      activeChannelId: activeChannel?.id,
+      activePlaylistId: activePlaylist?.id,
+      activeVideoId: activeVideo?.id,
+    };
+
+    if (!currentState || currentState.activeVideoId !== newState.activeVideoId || 
+        currentState.activePlaylistId !== newState.activePlaylistId || 
+        currentState.activeChannelId !== newState.activeChannelId) {
+      window.history.pushState(newState, "");
+    }
+  }, [activeChannel?.id, activePlaylist?.id, activeVideo?.id]);
 
   useEffect(() => {
     if (isDark) {
@@ -348,7 +400,6 @@ function App() {
               activeVideo={activeVideo} 
               activePlaylist={activePlaylist} 
               activeChannel={activeChannel}
-              onBack={() => setActiveVideo(null)}
               onVideoClick={(v) => handleVideoClick(activePlaylist, v)}
               onComplete={(vid) => markVideoCompleted(activePlaylist.id, vid)}
               progressData={progressData}
@@ -507,16 +558,16 @@ function App() {
         {isMobileMenuOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[500]" />
-            <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-[#0f111a] z-[501] p-6 flex flex-col">
-              <div className="flex items-center justify-between mb-10">
+            <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-[#0f111a] z-[501] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.3)]">
+              <div className="flex items-center justify-between p-6 mb-4">
                 <span className="text-2xl font-black">NIMCET<span className="text-indigo-600">2027</span></span>
-                <button onClick={() => setIsMobileMenuOpen(false)}><X /></button>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X /></button>
               </div>
-              <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+              <div className="space-y-4 overflow-y-auto flex-1 px-4 pb-10 custom-scrollbar overflow-x-hidden">
                 {channels.map(c => (
                   <button key={c.id} onClick={() => { setActiveChannel(c); setActivePlaylist(null); setActiveVideo(null); setIsMobileMenuOpen(false); }} className={clsx("w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all", activeChannel?.id === c.id ? "bg-indigo-600 text-white shadow-xl" : "bg-slate-50 dark:bg-white/5 text-slate-500")}>
                     <img src={c.icon} className="w-10 h-10 rounded-full" />
-                    <span>{c.name}</span>
+                    <span className="truncate">{c.name}</span>
                   </button>
                 ))}
               </div>
@@ -757,77 +808,93 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
   );
 }
 
-function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onBack, onVideoClick, onComplete, progressData }: any) {
+function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onVideoClick, onComplete, progressData }: any) {
   const playerRef = useRef<any>(null);
 
   useEffect(() => {
-    let internalPlayer: any = null;
+    const handleFullscreenChange = () => {
+      const fsElem = document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement || (document as any).msFullscreenElement;
+      
+      // If something went fullscreen and it's our player area
+      if (fsElem) {
+        if (window.screen && window.screen.orientation && (window.screen.orientation as any).lock) {
+          (window.screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } else {
+        if (window.screen && window.screen.orientation && (window.screen.orientation as any).unlock) {
+          try { (window.screen.orientation as any).unlock(); } catch (e) {}
+        }
+      }
+    };
 
-    if (activeVideo && (window as any).YT && (window as any).YT.Player) {
-      const initPlayer = () => {
-        internalPlayer = new (window as any).YT.Player('youtube-player', {
-          height: '100%',
-          width: '100%',
-          videoId: activeVideo.id,
-          playerVars: { 'autoplay': 1, 'rel': 0, 'modestbranding': 1, 'playsinline': 1 },
-          events: {
-            'onStateChange': (event: any) => {
-               if (event.data === 0) {
-                  onComplete(activeVideo.id);
-               }
-            }
-          }
-        });
-        playerRef.current = internalPlayer;
-      };
-
-      const container = document.getElementById('youtube-player');
-      if (container) initPlayer();
-    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+
+  useEffect(() => {
+    let internalPlayer: any = null;
+    let timeout: any = null;
+
+    const initPlayer = () => {
+      if (!(window as any).YT || !(window as any).YT.Player) {
+        timeout = setTimeout(initPlayer, 100);
+        return;
+      }
+
+      const container = document.getElementById('youtube-player');
+      if (!container) {
+        timeout = setTimeout(initPlayer, 100);
+        return;
+      }
+
+      internalPlayer = new (window as any).YT.Player('youtube-player', {
+        height: '100%',
+        width: '100%',
+        videoId: activeVideo.id,
+        playerVars: { 'autoplay': 1, 'rel': 0, 'modestbranding': 1, 'playsinline': 1 },
+        events: {
+          'onStateChange': (event: any) => {
+             if (event.data === 0) {
+                onComplete(activeVideo.id);
+             }
+          }
+        }
+      });
+      playerRef.current = internalPlayer;
+    };
+
+    initPlayer();
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
       if (internalPlayer && internalPlayer.destroy) {
         try { internalPlayer.destroy(); } catch(e) {}
       }
     };
   }, [activeVideo.id]);
 
-  useEffect(() => {
-    if (!(window as any).YT) {
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    }
-  }, []);
+  // Wait, I removed the duplicate injection from here as it's now in App root
 
   return (
-    <div className="h-full flex flex-col lg:flex-row overflow-hidden absolute inset-0 z-[200] bg-black">
-       <div className="flex-1 flex flex-col bg-black relative">
-         <div className="p-3 md:p-4 bg-gradient-to-b from-black/90 to-transparent flex justify-between items-center z-10 sticky top-0">
-            <div className="flex gap-2">
-               <button onClick={onBack} className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-full hover:bg-white/20 transition-all font-bold text-xs">
-                 <ArrowLeft size={16} /> Back
-               </button>
-            </div>
-            <button 
-              onClick={() => {
-                const elem = document.getElementById('youtube-player');
-                if (elem && elem.requestFullscreen) elem.requestFullscreen();
-                else if ((elem as any).webkitRequestFullscreen) (elem as any).webkitRequestFullscreen();
-              }}
-              className="bg-indigo-600 text-white p-2 rounded-full shadow-lg shadow-indigo-600/20 active:scale-90 transition-transform"
-            >
-              <Maximize size={18} />
-            </button>
-         </div>
-         <div className="flex-1 w-full bg-black flex items-center justify-center overflow-hidden" key={activeVideo.id}>
-            <div 
-               className="w-full aspect-video md:h-full md:w-auto md:aspect-video shadow-2xl"
-               dangerouslySetInnerHTML={{ __html: '<div id="youtube-player" style="width:100%; height:100%;"></div>' }}
-            />
-         </div>
-         <div className="p-5 md:p-10 bg-white dark:bg-[#0f111a] border-t border-slate-200 dark:border-white/5 max-h-64 overflow-y-auto">
+   <div className="h-full flex flex-col lg:flex-row overflow-hidden absolute inset-0 z-[200] bg-black">
+       <div className="flex-1 flex flex-col bg-black relative min-h-0">
+          <div className="w-full aspect-video bg-black flex items-center justify-center overflow-hidden flex-shrink-0" key={activeVideo.id}>
+             <div 
+                className="w-full h-full shadow-2xl"
+                dangerouslySetInnerHTML={{ __html: '<div id="youtube-player" style="width:100%; height:100%;"></div>' }}
+             />
+          </div>
+         <div className="flex-1 p-5 md:p-10 bg-white dark:bg-[#0f111a] border-t border-slate-200 dark:border-white/5 overflow-y-auto">
             <div className="max-w-4xl">
                <h1 className="text-lg md:text-2xl font-black leading-tight break-words mb-4">{activeVideo.title}</h1>
                <div className={clsx("inline-flex w-fit px-4 py-1.5 rounded-full font-black text-[10px] md:text-sm items-center gap-2", progressData[activePlaylist.id]?.watched?.includes(activeVideo.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-100 dark:bg-white/5 text-slate-500")}>
@@ -844,7 +911,7 @@ function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onBack, o
             </div>
          </div>
        </div>
-       <div className="w-full lg:w-96 bg-white dark:bg-[#0f111a] border-l border-slate-200 dark:border-white/5 flex flex-col">
+       <div className="w-full h-[45vh] lg:h-full lg:w-96 bg-white dark:bg-[#0f111a] border-l border-slate-200 dark:border-white/5 flex flex-col flex-shrink-0">
           <div className="p-4 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f111a] z-10 flex items-center justify-between">
             <h3 className="font-black text-xs tracking-widest text-slate-400">UP NEXT</h3>
             <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{activePlaylist.videos.length} Lectures</span>
