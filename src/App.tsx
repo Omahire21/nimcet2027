@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Menu, Search, Bell, GraduationCap, ChevronRight, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Save, ExternalLink, Database } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Menu, Search, Bell, GraduationCap, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Database, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import { Channel, Playlist, Video, channelsData } from './data';
 import { motion, AnimatePresence } from 'framer-motion';
-import { loginWithGoogle, auth, logoutUser, db } from './firebase';
+import { loginWithGoogle, auth, db, logoutUser } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 
 const ADMIN_EMAIL = "ahiroom30@gmail.com";
 
@@ -30,7 +30,6 @@ function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const playerRef = useRef<any>(null);
 
