@@ -104,12 +104,32 @@ function App() {
   const markVideoCompleted = (playlistId: string, videoId: string) => {
     setProgressData(prev => {
       const plData = prev[playlistId] || { watched: [] };
-      if (plData.watched.includes(videoId)) return prev;
+      if (plData.watched.includes(videoId)) {
+        handleAutoplay(playlistId, videoId);
+        return prev;
+      }
       const newWatched = [...plData.watched, videoId];
       const newData = { ...prev, [playlistId]: { ...plData, watched: newWatched } };
       localStorage.setItem('nimcet_progress_v3', JSON.stringify(newData));
+      
+      // Trigger autoplay logic
+      handleAutoplay(playlistId, videoId);
+      
       return newData;
     });
+  };
+
+  const handleAutoplay = (playlistId: string, currentVideoId: string) => {
+    if (activePlaylist && activePlaylist.id === playlistId) {
+      const currentIndex = activePlaylist.videos.findIndex(v => v.id === currentVideoId);
+      if (currentIndex !== -1 && currentIndex < activePlaylist.videos.length - 1) {
+        const nextVideo = activePlaylist.videos[currentIndex + 1];
+        // Short delay to let the UI breathe
+        setTimeout(() => {
+          handleVideoClick(activePlaylist, nextVideo);
+        }, 1000);
+      }
+    }
   };
 
   const resetToHome = () => {
