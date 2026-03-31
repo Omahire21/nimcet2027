@@ -441,17 +441,17 @@ function App() {
                   </div>
                </div>
 
-               <div className="grid gap-4">
+               <div className="grid gap-3">
                   {activePlaylist.videos.map((v: Video, i: number) => (
-                    <div key={v.id} onClick={() => handleVideoClick(activePlaylist, v)} className="flex items-center gap-4 p-5 bg-white dark:bg-[#0f111a] rounded-2xl border border-slate-200 dark:border-white/5 hover:border-indigo-500/40 hover:shadow-xl transition-all cursor-pointer group">
-                       <div className="w-8 font-black text-slate-300 group-hover:text-indigo-500 transition-colors">{(i+1).toString().padStart(2, '0')}</div>
-                       <div className="w-32 md:w-48 aspect-video rounded-xl overflow-hidden relative">
+                    <div key={v.id} onClick={() => handleVideoClick(activePlaylist, v)} className="flex items-center gap-3 p-4 bg-white dark:bg-[#0f111a] rounded-2xl border border-slate-200 dark:border-white/5 hover:border-indigo-500/40 hover:shadow-xl transition-all cursor-pointer group">
+                       <div className="w-6 text-[10px] font-black text-slate-300 group-hover:text-indigo-500 transition-colors">{(i+1).toString().padStart(2, '0')}</div>
+                       <div className="w-28 md:w-44 aspect-video rounded-xl overflow-hidden relative flex-shrink-0">
                          <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
-                         <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
+                         <div className="absolute bottom-1 right-1 bg-black/80 text-[8px] md:text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
                        </div>
                        <div className="flex-1 overflow-hidden">
-                         <h4 className="font-bold text-sm md:text-lg line-clamp-2 md:leading-snug leading-tight group-hover:text-indigo-500 transition-colors">{v.title}</h4>
-                         {progressData[activePlaylist.id]?.watched?.includes(v.id) && <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-500 mt-2 bg-emerald-500/10 px-2 py-0.5 rounded-full"><CheckCircle2 size={10} /> WATCHED</span>}
+                         <h4 className="font-bold text-sm md:text-base lg:text-lg line-clamp-2 md:leading-snug leading-tight group-hover:text-indigo-500 transition-colors">{v.title}</h4>
+                         {progressData[activePlaylist.id]?.watched?.includes(v.id) && <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-500 mt-2 bg-emerald-500/10 px-2 py-0.5 rounded-full"><CheckCircle2 size={10} /> WATCHED</span>}
                        </div>
                     </div>
                   ))}
