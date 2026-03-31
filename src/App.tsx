@@ -486,21 +486,43 @@ function App() {
       {/* Auth Modal */}
       <AnimatePresence>
         {isAuthModalOpen && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm bg-white dark:bg-[#0f111a] rounded-[3rem] p-12 text-center border border-white/10 shadow-2xl">
-               <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-indigo-600/30">
-                 <GraduationCap className="text-white" size={40} />
-               </div>
-               <h2 className="text-3xl font-black mb-4">Master NIMCET</h2>
-               <p className="text-slate-500 mb-10 text-sm">Join the elite community of MCA aspirants.</p>
-               <button onClick={() => loginWithGoogle()} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-5 rounded-2xl flex items-center justify-center gap-3 font-bold hover:border-indigo-500 transition-all active:scale-95">
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/pjax/google.png" className="w-5 h-5" />
-                  <span>Start with Google</span>
-               </button>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-white dark:bg-[#0f111a] rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/5 overflow-hidden"
+            >
+              <div className="p-10 text-center">
+                <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-2xl shadow-indigo-500/40 rotate-3 transform">
+                  <GraduationCap size={40} className="text-white" />
+                </div>
+                <h1 className="text-3xl font-black mb-3 tracking-tight">Welcome to NIMCET2027</h1>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mb-10 leading-relaxed">Sign in to sync your progress across all your devices and start learning.</p>
+                
+                <button 
+                  onClick={async () => {
+                   try { await loginWithGoogle(); } catch(e) {}
+                  }}
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-indigo-500 py-4 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-slate-200/50 dark:shadow-none"
+                >
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/pjax/google.png" className="w-5 h-5" alt="Google" />
+                  <span>Continue with Google</span>
+                </button>
+                
+                <p className="text-[10px] text-slate-400 mt-8 leading-tight">By continuing, you agree to our Terms of Service and Privacy Policy.</p>
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
 
       {/* Mobile Sidebar */}
       <AnimatePresence>
