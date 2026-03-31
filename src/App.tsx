@@ -7,7 +7,7 @@ import { loginWithGoogle, auth, db, logoutUser } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query, addDoc, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "ahiroom30@gmail.com";
+const ADMIN_EMAIL = "ahireom30@gmail.com";
 
 function App() {
   const [channels, setChannels] = useState<Channel[]>([]);
