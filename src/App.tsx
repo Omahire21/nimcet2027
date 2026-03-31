@@ -512,7 +512,7 @@ function App() {
                   }}
                   className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-indigo-500 py-4 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-slate-200/50 dark:shadow-none"
                 >
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/pjax/google.png" className="w-5 h-5" alt="Google" />
+                  <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" className="w-5 h-5" alt="Google" />
                   <span>Continue with Google</span>
                 </button>
                 
