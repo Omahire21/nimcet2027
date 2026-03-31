@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Menu, Search, Bell, GraduationCap, ChevronRight, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Save, ExternalLink } from 'lucide-react';
+import { Play, Menu, Search, Bell, GraduationCap, ChevronRight, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Save, ExternalLink, Database } from 'lucide-react';
 import clsx from 'clsx';
-import { Channel, Playlist, Video } from './data';
+import { Channel, Playlist, Video, channelsData } from './data';
 import { motion, AnimatePresence } from 'framer-motion';
 import { loginWithGoogle, auth, logoutUser, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query, addDoc, updateDoc, doc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, updateDoc, doc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 
 const ADMIN_EMAIL = "ahiroom30@gmail.com";
 
@@ -150,9 +150,9 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0c14] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0c14] text-slate-900 dark:text-slate-100 font-sans transition-all duration-500 ease-in-out">
       {/* Header */}
-      <header className="h-20 border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-[#0f111a]/80 backdrop-blur-xl sticky top-0 z-[100] flex items-center justify-between px-4 md:px-8">
+      <header className="h-20 border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0f111a]/90 backdrop-blur-xl sticky top-0 z-[100] flex items-center justify-between px-4 md:px-8 transition-all duration-500">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setIsMobileMenuOpen(true)}
@@ -554,7 +554,30 @@ function App() {
 function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channel[] }) {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isAddingChannel, setIsAddingChannel] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [form, setForm] = useState({ name: '', icon: '', subscribers: '', description: '', playlistTitle: '', playlistThumbnail: '', videoTitle: '', videoId: '', videoDuration: '' });
+
+  const seedInitialData = async () => {
+    if (channels.length > 0) return alert("Database already has data!");
+    if (!confirm("Are you sure? This will upload all the initial channels and content to your cloud database.")) return;
+    
+    setIsSeeding(true);
+    try {
+      const batch = writeBatch(db);
+      channelsData.forEach((channel) => {
+        const docRef = doc(collection(db, "channels"));
+        const { id, ...data } = channel; // Remove local id if any
+        batch.set(docRef, data);
+      });
+      await batch.commit();
+      alert("Successfully seeded data!");
+    } catch (err) {
+      console.error(err);
+      alert("Seeding failed");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const handleAddChannel = async () => {
     if (!form.name || !form.icon) return alert("Fill mandatory fields");
@@ -611,12 +634,23 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
 
   return (
     <div className="p-6 md:p-12">
-      <div className="flex items-center justify-between mb-10 pb-6 border-b dark:border-white/5">
+      <div className="flex items-center justify-between mb-10 pb-6 border-b dark:border-white/5 transition-all">
         <div>
           <h1 className="text-3xl font-black">NIMCET Master Console</h1>
           <p className="text-slate-500 text-sm">Real-time Cloud Management</p>
         </div>
-        <button onClick={onExit} className="bg-rose-500 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-rose-500/20">Exit Console</button>
+        <div className="flex gap-4">
+          {channels.length === 0 && (
+            <button 
+              onClick={seedInitialData} 
+              disabled={isSeeding}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <Database size={18} /> {isSeeding ? "Restoring..." : "Restore Initial Channels"}
+            </button>
+          )}
+          <button onClick={onExit} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-all">Exit Console</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

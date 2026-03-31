@@ -19,6 +19,7 @@ export type Channel = {
   icon: string;
   subscribers: string;
   playlists: Playlist[];
+  description?: string;
 };
 
 export const channelsData: Channel[] = [
