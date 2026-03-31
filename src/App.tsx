@@ -45,7 +45,8 @@ function App() {
         const updated = docs.find(c => c.id === activeChannel.id);
         if (updated) setActiveChannel(updated);
       } else if (docs.length > 0 && !activeChannel) {
-        setActiveChannel(docs[0]);
+        const pwChannel = docs.find(c => c.name.toLowerCase().includes("PW NIMCET")) || docs[0];
+        setActiveChannel(pwChannel);
       }
       setIsLoading(false);
     });
