@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Menu, Search, Bell, GraduationCap, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Database, ExternalLink } from 'lucide-react';
+import { Play, Menu, Search, Bell, GraduationCap, ArrowLeft, User, CheckCircle2, LogOut, X, Plus, Trash2, Edit2, Database, ExternalLink, Maximize } from 'lucide-react';
 import clsx from 'clsx';
 import { Channel, Playlist, Video, channelsData } from './data';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +15,7 @@ function App() {
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark';
@@ -31,7 +32,6 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const playerRef = useRef<any>(null);
 
   // Sync with Firestore
   useEffect(() => {
@@ -39,12 +39,18 @@ function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Channel));
       setChannels(docs);
-      if (docs.length > 0 && !activeChannel) {
+      
+      // Keep activeChannel in sync if it's already selected
+      if (activeChannel) {
+        const updated = docs.find(c => c.id === activeChannel.id);
+        if (updated) setActiveChannel(updated);
+      } else if (docs.length > 0 && !activeChannel) {
         setActiveChannel(docs[0]);
       }
+      setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [activeChannel]);
+  }, [activeChannel?.id]);
 
   // Sync with real Firebase state
   useEffect(() => {
@@ -72,42 +78,6 @@ function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
-
-  // YouTube API initialization
-  useEffect(() => {
-    if (!(window as any).YT) {
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    }
-    
-    (window as any).onYouTubeIframeAPIReady = () => {
-      console.log("YT API Ready");
-    };
-  }, []);
-
-  useEffect(() => {
-    if (activeVideo && activePlaylist && (window as any).YT && (window as any).YT.Player) {
-      if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch(e) {}
-      }
-      playerRef.current = new (window as any).YT.Player('youtube-player', {
-        height: '100%',
-        width: '100%',
-        videoId: activeVideo.id,
-        playerVars: { 'autoplay': 1, 'rel': 0 },
-        events: {
-          'onStateChange': (event: any) => {
-             // 0 is ENDED
-             if (event.data === 0) {
-                markVideoCompleted(activePlaylist.id, activeVideo.id);
-             }
-          }
-        }
-      });
-    }
-  }, [activeVideo, activePlaylist]);
 
   const [progressData, setProgressData] = useState<Record<string, { watched: string[], lastWatchedId?: string }>>(() => {
     try {
@@ -149,7 +119,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0c14] text-slate-900 dark:text-slate-100 font-sans transition-all duration-500 ease-in-out">
+    <div className="h-screen flex flex-col bg-slate-50 dark:bg-[#0a0c14] text-slate-900 dark:text-slate-100 font-sans transition-all duration-500 ease-in-out">
       {/* Header */}
       <header className="h-20 border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0f111a]/90 backdrop-blur-xl sticky top-0 z-[100] flex items-center justify-between px-4 md:px-8 transition-all duration-500">
         <div className="flex items-center gap-4">
@@ -353,67 +323,49 @@ function App() {
         <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0c14] relative">
           {isAdminMode ? (
             <AdminPanel onExit={() => setIsAdminMode(false)} channels={channels} />
-          ) : activeVideo && activePlaylist ? (
-            <div className="h-full flex flex-col lg:flex-row overflow-hidden">
-               <div className="flex-1 flex flex-col bg-black">
-                 <div className="p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center z-10">
-                    <button onClick={() => setActiveVideo(null)} className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-full hover:bg-white/20 transition-all font-bold text-sm">
-                      <ArrowLeft size={18} /> Back
-                    </button>
-                 </div>
-                 <div className="flex-1">
-                    <div id="youtube-player" className="w-full h-full"></div>
-                 </div>
-                 <div className="p-6 md:p-10 bg-white dark:bg-[#0f111a] border-t border-white/5">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                       <h1 className="text-2xl font-black">{activeVideo.title}</h1>
-                       <div className={clsx("px-6 py-2 rounded-full font-black text-sm flex items-center gap-2", progressData[activePlaylist.id]?.watched?.includes(activeVideo.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-100 dark:bg-white/5 text-slate-500")}>
-                         {progressData[activePlaylist.id]?.watched?.includes(activeVideo.id) ? <><CheckCircle2 size={18} /> COMPLETED</> : "AUTO-COMPLETES AT END"}
-                       </div>
-                    </div>
-                    <div className="flex items-center gap-4 mt-8 pt-8 border-t border-slate-100 dark:border-white/5">
-                       <img src={activeChannel?.icon} className="w-12 h-12 rounded-full" alt="" />
-                       <div>
-                         <p className="font-black">{activeChannel?.name}</p>
-                         <p className="text-xs text-slate-500">{activeChannel?.subscribers} subscribers</p>
-                       </div>
-                    </div>
-                 </div>
-               </div>
-               <div className="w-full lg:w-96 bg-white dark:bg-[#0f111a] border-l border-slate-200 dark:border-white/5 overflow-y-auto">
-                  <div className="p-4 border-b border-slate-200 dark:border-white/5 sticky top-0 bg-white dark:bg-[#0f111a] z-10">
-                    <h3 className="font-black text-sm">UP NEXT</h3>
-                  </div>
-                  <div className="divide-y dark:divide-white/5">
-                    {activePlaylist.videos.map((v: Video, i: number) => (
-                      <div key={v.id} onClick={() => handleVideoClick(activePlaylist, v)} className={clsx("p-4 flex gap-3 cursor-pointer group transition-colors", activeVideo.id === v.id ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
-                         <div className="w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 relative">
-                            <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
-                            <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1 rounded">{v.duration}</div>
-                            {activeVideo.id === v.id && <div className="absolute inset-0 bg-indigo-600/20 flex items-center justify-center"><Play size={20} fill="currentColor" className="text-white" /></div>}
-                         </div>
-                         <div className="flex-1 overflow-hidden">
-                           <h4 className={clsx("text-xs font-bold line-clamp-2 leading-tight", activeVideo.id === v.id ? "text-indigo-500" : "group-hover:text-indigo-600 dark:group-hover:text-white")}>{i+1}. {v.title}</h4>
-                           <p className="text-[10px] text-slate-500 mt-2">{activeChannel?.name}</p>
-                         </div>
-                      </div>
-                    ))}
-                  </div>
-               </div>
-            </div>
+          ) : activeVideo && activePlaylist && activeChannel ? (
+            <VideoPlayerView 
+              activeVideo={activeVideo} 
+              activePlaylist={activePlaylist} 
+              activeChannel={activeChannel}
+              onBack={() => setActiveVideo(null)}
+              onVideoClick={(v) => handleVideoClick(activePlaylist, v)}
+              onComplete={(vid) => markVideoCompleted(activePlaylist.id, vid)}
+              progressData={progressData}
+            />
           ) : activePlaylist ? (
-            <div className="p-6 md:p-12 max-w-7xl mx-auto">
-               <div className="flex flex-col md:flex-row gap-10 mb-16 items-center">
-                  <div className="w-full md:w-96 aspect-video rounded-3xl overflow-hidden shadow-2xl relative group">
+            <div className="p-6 md:p-8 max-w-7xl mx-auto">
+               <div className="flex flex-col md:flex-row gap-8 mb-10 items-center bg-white dark:bg-[#0f111a] p-6 rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl">
+                  <div className="w-full md:w-64 aspect-video rounded-2xl overflow-hidden shadow-lg relative group cursor-pointer" onClick={() => {
+                        const lastVId = progressData[activePlaylist.id]?.lastWatchedId;
+                        const v = lastVId ? activePlaylist.videos.find(vid => vid.id === lastVId) : activePlaylist.videos[0];
+                        if (v) handleVideoClick(activePlaylist, v || activePlaylist.videos[0]);
+                  }}>
                      <img src={activePlaylist.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Play size={48} className="text-white fill-white" />
+                        <Play size={32} className="text-white fill-white" />
                      </div>
                   </div>
                   <div className="flex-1 text-center md:text-left">
-                     <button onClick={() => setActivePlaylist(null)} className="text-slate-500 hover:text-indigo-600 flex items-center gap-2 mb-4 font-bold text-sm"><ArrowLeft size={16} /> Back to channel</button>
-                     <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tight">{activePlaylist.title}</h1>
-                     <p className="text-indigo-600 font-bold">{activePlaylist.videoCount} Exclusive Lectures</p>
+                     <button onClick={() => setActivePlaylist(null)} className="hidden md:flex text-slate-500 hover:text-indigo-600 items-center gap-2 mb-2 font-bold text-xs"><ArrowLeft size={14} /> Back to channel</button>
+                     <h1 className="text-2xl md:text-3xl font-black mb-2 tracking-tight line-clamp-2 md:line-clamp-3 leading-snug break-words">{activePlaylist.title}</h1>
+                     <p className="text-indigo-600 font-bold text-sm tracking-wide">{activePlaylist.videoCount} Exclusive Lectures</p>
+                     <div className="mt-4 flex gap-3 justify-center md:justify-start">
+                        {progressData[activePlaylist.id]?.lastWatchedId ? (
+                           <button onClick={() => {
+                              const v = activePlaylist.videos.find(vid => vid.id === progressData[activePlaylist.id].lastWatchedId) || activePlaylist.videos[0];
+                              if (v) handleVideoClick(activePlaylist, v);
+                           }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all text-sm">
+                              <Play size={16} fill="currentColor" /> Resume Playlist
+                           </button>
+                        ) : (
+                           <button onClick={() => {
+                              if(activePlaylist.videos.length > 0) handleVideoClick(activePlaylist, activePlaylist.videos[0]);
+                           }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all text-sm">
+                              <Play size={16} fill="currentColor" /> Start Playlist
+                           </button>
+                        )}
+                     </div>
                   </div>
                </div>
 
@@ -426,7 +378,7 @@ function App() {
                          <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
                        </div>
                        <div className="flex-1 overflow-hidden">
-                         <h4 className="font-bold text-sm md:text-lg truncate group-hover:text-indigo-500 transition-colors">{v.title}</h4>
+                         <h4 className="font-bold text-sm md:text-lg line-clamp-2 md:leading-snug leading-tight group-hover:text-indigo-500 transition-colors">{v.title}</h4>
                          {progressData[activePlaylist.id]?.watched?.includes(v.id) && <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-500 mt-2 bg-emerald-500/10 px-2 py-0.5 rounded-full"><CheckCircle2 size={10} /> WATCHED</span>}
                        </div>
                     </div>
@@ -435,19 +387,19 @@ function App() {
             </div>
           ) : activeChannel ? (
             <div className="p-6 md:p-12 max-w-7xl mx-auto">
-               <div className="flex flex-col md:flex-row items-center gap-8 mb-20 bg-white dark:bg-[#0f111a] p-10 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 opacity-5 blur-[100px] -mr-32 -mt-32 rounded-full" />
-                  <img src={activeChannel.icon} className="w-32 h-32 md:w-48 md:h-48 rounded-[2.5rem] shadow-2xl relative" alt="" />
+               <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 mb-6 md:mb-10 bg-white dark:bg-[#0f111a] p-4 md:p-8 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-white/5 shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 bg-indigo-600 opacity-5 blur-[60px] md:blur-[80px] -mr-16 -mt-16 md:-mr-24 md:-mt-24 rounded-full" />
+                  <img src={activeChannel.icon} className="w-16 h-16 md:w-28 md:h-28 rounded-xl md:rounded-2xl shadow-md md:shadow-lg relative" alt="" />
                   <div className="text-center md:text-left relative">
-                    <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter">{activeChannel.name}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 font-bold text-lg mb-4">{activeChannel.subscribers} Subscribers • {activeChannel.playlists.length} Courses</p>
-                    <p className="text-slate-400 max-w-2xl text-sm leading-relaxed">{activeChannel.description}</p>
+                    <h1 className="text-xl md:text-3xl font-black mb-0.5 md:mb-1 tracking-tighter">{activeChannel.name}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-bold text-[10px] md:text-sm mb-1 md:mb-2">{activeChannel.subscribers} Subscribers • {activeChannel.playlists.length} Courses</p>
+                    <p className="text-slate-400 max-w-2xl text-xs leading-relaxed line-clamp-1 md:line-clamp-2 hidden md:block">{activeChannel.description}</p>
                   </div>
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                   {activeChannel.playlists.map(p => (
-                    <div key={p.id} onClick={() => setActivePlaylist(p)} className="bg-white dark:bg-[#0f111a] rounded-[2.5rem] border border-slate-200 dark:border-white/5 overflow-hidden group cursor-pointer hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+                    <div key={p.id} onClick={() => setActivePlaylist(p)} className="bg-white dark:bg-[#0f111a] rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                        <div className="aspect-video relative overflow-hidden">
                           <img src={p.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                           <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
@@ -460,16 +412,23 @@ function App() {
                             </div>
                           )}
                        </div>
-                       <div className="p-8">
+                       <div className="p-5">
                           <div className="flex justify-between items-center mb-4">
                             <span className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full">{p.videoCount} LECTURES</span>
                             {progressData[p.id]?.watched && <span className="text-[10px] font-black text-emerald-500">{Math.round((progressData[p.id].watched.length / p.videoCount) * 100)}% COMPLETE</span>}
                           </div>
-                          <h4 className="font-black text-lg group-hover:text-indigo-500 transition-colors line-clamp-1">{p.title}</h4>
+                          <h4 className="font-black text-lg group-hover:text-indigo-500 transition-colors line-clamp-2 leading-tight">{p.title}</h4>
                        </div>
                     </div>
                   ))}
                </div>
+            </div>
+          ) : isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="animate-pulse flex flex-col items-center gap-4">
+                 <div className="w-10 h-10 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+                 <p className="font-bold tracking-widest text-xs text-indigo-500">LOADING CLOUD DATA...</p>
+              </div>
             </div>
           ) : (
             <div className="h-full flex items-center justify-center">
@@ -533,7 +492,7 @@ function App() {
                 <span className="text-2xl font-black">NIMCET<span className="text-indigo-600">2027</span></span>
                 <button onClick={() => setIsMobileMenuOpen(false)}><X /></button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                 {channels.map(c => (
                   <button key={c.id} onClick={() => { setActiveChannel(c); setActivePlaylist(null); setActiveVideo(null); setIsMobileMenuOpen(false); }} className={clsx("w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all", activeChannel?.id === c.id ? "bg-indigo-600 text-white shadow-xl" : "bg-slate-50 dark:bg-white/5 text-slate-500")}>
                     <img src={c.icon} className="w-10 h-10 rounded-full" />
@@ -555,24 +514,26 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
   const [isAddingChannel, setIsAddingChannel] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [form, setForm] = useState({ name: '', icon: '', subscribers: '', description: '', playlistTitle: '', playlistThumbnail: '', videoTitle: '', videoId: '', videoDuration: '' });
-
   const seedInitialData = async () => {
-    if (channels.length > 0) return alert("Database already has data!");
-    if (!confirm("Are you sure? This will upload all the initial channels and content to your cloud database.")) return;
+    const existingNames = new Set(channels.map(c => c.name.toLowerCase().trim()));
+    const newChannelsToSeed = channelsData.filter(c => !existingNames.has(c.name.toLowerCase().trim()));
+    
+    if (newChannelsToSeed.length === 0) return alert("Database is already up to date with initial channels!");
+    if (!confirm(`Found ${newChannelsToSeed.length} new channels to add. Continue?`)) return;
     
     setIsSeeding(true);
     try {
       const batch = writeBatch(db);
-      channelsData.forEach((channel) => {
+      newChannelsToSeed.forEach((channel) => {
         const docRef = doc(collection(db, "channels"));
-        const { id, ...data } = channel; // Remove local id if any
+        const { id, ...data } = channel as any;
         batch.set(docRef, data);
       });
       await batch.commit();
-      alert("Successfully seeded data!");
-    } catch (err) {
+      alert(`Successfully added ${newChannelsToSeed.length} channels!`);
+    } catch (err: any) {
       console.error(err);
-      alert("Seeding failed");
+      alert(`Seeding failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsSeeding(false);
     }
@@ -580,6 +541,11 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
 
   const handleAddChannel = async () => {
     if (!form.name || !form.icon) return alert("Fill mandatory fields");
+    
+    // Check for duplicate names locally first
+    const exists = channels.some(c => c.name.toLowerCase().trim() === form.name.toLowerCase().trim());
+    if (exists) return alert("A channel with this name already exists in your database!");
+
     await addDoc(collection(db, "channels"), {
       name: form.name,
       icon: form.icon,
@@ -639,16 +605,27 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
           <p className="text-slate-500 text-sm">Real-time Cloud Management</p>
         </div>
         <div className="flex gap-4">
-          {channels.length === 0 && (
-            <button 
-              onClick={seedInitialData} 
-              disabled={isSeeding}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all disabled:opacity-50"
-            >
-              <Database size={18} /> {isSeeding ? "Restoring..." : "Restore Initial Channels"}
-            </button>
-          )}
-          <button onClick={onExit} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-all">Exit Console</button>
+          <button 
+            onClick={seedInitialData} 
+            disabled={isSeeding}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all disabled:opacity-50"
+          >
+            <Database size={18} /> {isSeeding ? "Restoring..." : "Restore Initial Channels"}
+          </button>
+          <button 
+             onClick={async () => {
+               if(confirm("DANGER: This will delete ALL channels from cloud forever. Are you sure?")) {
+                  const batch = writeBatch(db);
+                  channels.forEach(c => batch.delete(doc(db, "channels", c.id)));
+                  await batch.commit();
+                  alert("Cloud database cleared!");
+               }
+             }}
+             className="bg-slate-200 dark:bg-white/5 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl font-bold text-xs transition-all"
+           >
+             Clear Database
+           </button>
+           <button onClick={onExit} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-all">Exit Console</button>
         </div>
       </div>
 
@@ -756,6 +733,121 @@ function AdminPanel({ onExit, channels }: { onExit: () => void, channels: Channe
            )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onBack, onVideoClick, onComplete, progressData }: any) {
+  const playerRef = useRef<any>(null);
+
+  useEffect(() => {
+    let internalPlayer: any = null;
+
+    if (activeVideo && (window as any).YT && (window as any).YT.Player) {
+      const initPlayer = () => {
+        internalPlayer = new (window as any).YT.Player('youtube-player', {
+          height: '100%',
+          width: '100%',
+          videoId: activeVideo.id,
+          playerVars: { 'autoplay': 1, 'rel': 0, 'modestbranding': 1, 'playsinline': 1 },
+          events: {
+            'onStateChange': (event: any) => {
+               if (event.data === 0) {
+                  onComplete(activeVideo.id);
+               }
+            }
+          }
+        });
+        playerRef.current = internalPlayer;
+      };
+
+      const container = document.getElementById('youtube-player');
+      if (container) initPlayer();
+    }
+
+    return () => {
+      if (internalPlayer && internalPlayer.destroy) {
+        try { internalPlayer.destroy(); } catch(e) {}
+      }
+    };
+  }, [activeVideo.id]);
+
+  useEffect(() => {
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, []);
+
+  return (
+    <div className="h-full flex flex-col lg:flex-row overflow-hidden absolute inset-0 z-[200] bg-black">
+       <div className="flex-1 flex flex-col bg-black relative">
+         <div className="p-3 md:p-4 bg-gradient-to-b from-black/90 to-transparent flex justify-between items-center z-10 sticky top-0">
+            <div className="flex gap-2">
+               <button onClick={onBack} className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-full hover:bg-white/20 transition-all font-bold text-xs">
+                 <ArrowLeft size={16} /> Back
+               </button>
+            </div>
+            <button 
+              onClick={() => {
+                const elem = document.getElementById('youtube-player');
+                if (elem && elem.requestFullscreen) elem.requestFullscreen();
+                else if ((elem as any).webkitRequestFullscreen) (elem as any).webkitRequestFullscreen();
+              }}
+              className="bg-indigo-600 text-white p-2 rounded-full shadow-lg shadow-indigo-600/20 active:scale-90 transition-transform"
+            >
+              <Maximize size={18} />
+            </button>
+         </div>
+         <div className="flex-1 w-full bg-black flex items-center justify-center overflow-hidden" key={activeVideo.id}>
+            <div 
+               className="w-full aspect-video md:h-full md:w-auto md:aspect-video shadow-2xl"
+               dangerouslySetInnerHTML={{ __html: '<div id="youtube-player" style="width:100%; height:100%;"></div>' }}
+            />
+         </div>
+         <div className="p-5 md:p-10 bg-white dark:bg-[#0f111a] border-t border-slate-200 dark:border-white/5 max-h-64 overflow-y-auto">
+            <div className="max-w-4xl">
+               <h1 className="text-lg md:text-2xl font-black leading-tight break-words mb-4">{activeVideo.title}</h1>
+               <div className={clsx("inline-flex w-fit px-4 py-1.5 rounded-full font-black text-[10px] md:text-sm items-center gap-2", progressData[activePlaylist.id]?.watched?.includes(activeVideo.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-100 dark:bg-white/5 text-slate-500")}>
+                 {progressData[activePlaylist.id]?.watched?.includes(activeVideo.id) ? <><CheckCircle2 size={14} /> COMPLETED</> : "AUTO-COMPLETES AT END"}
+               </div>
+               
+               <div className="flex items-center gap-4 mt-8 pt-8 border-t border-slate-100 dark:border-white/5">
+                 <img src={activeChannel.icon} className="w-12 h-12 rounded-full" alt={activeChannel.name} />
+                 <div>
+                   <p className="font-black text-sm md:text-base">{activeChannel.name}</p>
+                   <p className="text-[10px] md:text-xs text-slate-500 uppercase font-bold tracking-widest">{activeChannel.subscribers} Subscribers</p>
+                 </div>
+               </div>
+            </div>
+         </div>
+       </div>
+       <div className="w-full lg:w-96 bg-white dark:bg-[#0f111a] border-l border-slate-200 dark:border-white/5 flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0f111a] z-10 flex items-center justify-between">
+            <h3 className="font-black text-xs tracking-widest text-slate-400">UP NEXT</h3>
+            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{activePlaylist.videos.length} Lectures</span>
+          </div>
+          <div className="flex-1 overflow-y-auto divide-y dark:divide-white/5 custom-scrollbar">
+            {activePlaylist.videos.map((v: any, i: number) => (
+              <div key={v.id} onClick={() => onVideoClick(v)} className={clsx("p-4 flex gap-3 cursor-pointer group transition-all", activeVideo.id === v.id ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
+                 <div className="w-28 md:w-32 aspect-video rounded-xl overflow-hidden flex-shrink-0 relative border dark:border-white/5">
+                    <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+                    <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
+                    {activeVideo.id === v.id && <div className="absolute inset-0 bg-indigo-600/30 flex items-center justify-center backdrop-blur-[2px]"><Play size={20} fill="currentColor" className="text-white" /></div>}
+                 </div>
+                 <div className="flex-1 overflow-hidden">
+                   <h4 className={clsx("text-xs font-bold line-clamp-2 leading-tight transition-colors", activeVideo.id === v.id ? "text-indigo-600" : "group-hover:text-indigo-500")}>{i+1}. {v.title}</h4>
+                   <div className="flex items-center gap-2 mt-2">
+                     {progressData[activePlaylist.id]?.watched?.includes(v.id) && <CheckCircle2 size={12} className="text-emerald-500" />}
+                     <p className="text-[10px] text-slate-400 font-medium truncate">{activeChannel.name}</p>
+                   </div>
+                 </div>
+              </div>
+            ))}
+          </div>
+       </div>
     </div>
   );
 }

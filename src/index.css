@@ -16,3 +16,36 @@
     -ms-user-select: none;
   }
 }
+
+/* Custom Scrollbar - ALWAYS VISIBLE VERSION */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #6366f1 #f1f5f9; /* Solid colors for visibility */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px; /* Slightly wider */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9; /* Visible track */
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #6366f1; /* Solid Indigo */
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #4f46e5;
+}
+
+/* Dark mode colors */
+.dark .custom-scrollbar {
+  scrollbar-color: #6366f1 #1e293b;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid #1e293b;
+}
