@@ -269,9 +269,9 @@ function App() {
                       {playlistResults.map(p => (
                         <div key={`pl-${p.id}`} onClick={() => { setActiveChannel(p.channel); setActivePlaylist(p); setActiveVideo(null); setSearchQuery(''); }} className="p-3 hover:bg-slate-100 dark:hover:bg-white/10 cursor-pointer flex items-center gap-4 border-b last:border-0 border-slate-100 dark:border-white/5">
                            <img src={p.thumbnail} alt="" className="w-16 aspect-video rounded-lg object-cover" />
-                           <div className="flex-1 overflow-hidden">
+                           <div className="flex-1 min-w-0 overflow-hidden">
                              <h4 className="text-sm font-bold truncate">{p.title}</h4>
-                             <p className="text-[10px] text-slate-500">{p.channel.name}</p>
+                             <p className="text-[10px] text-slate-500 truncate">{p.channel.name}</p>
                            </div>
                         </div>
                       ))}
@@ -283,9 +283,9 @@ function App() {
                            <div className="w-16 aspect-video rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                              <img src={v.thumbnail} alt="" className="w-full h-full object-cover" />
                            </div>
-                           <div className="flex-1 overflow-hidden">
+                           <div className="flex-1 min-w-0 overflow-hidden">
                              <h4 className="text-sm font-bold truncate">{v.title}</h4>
-                             <p className="text-[10px] text-slate-500">{v.playlist.title}</p>
+                             <p className="text-[10px] text-slate-500 truncate">{v.playlist.title}</p>
                            </div>
                         </div>
                       ))}
@@ -450,8 +450,8 @@ function App() {
                          <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
                          <div className="absolute bottom-1 right-1 bg-black/80 text-[8px] md:text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
                        </div>
-                       <div className="flex-1 overflow-hidden">
-                         <h4 className="font-bold text-sm md:text-base lg:text-lg line-clamp-2 md:leading-snug leading-tight group-hover:text-indigo-500 transition-colors">{v.title}</h4>
+                       <div className="flex-1 min-w-0 overflow-hidden">
+                         <h4 className="font-bold text-sm md:text-base lg:text-lg line-clamp-2 md:leading-snug leading-tight group-hover:text-indigo-500 transition-colors break-words">{v.title}</h4>
                          {progressData[activePlaylist.id]?.watched?.includes(v.id) && <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-500 mt-2 bg-emerald-500/10 px-2 py-0.5 rounded-full"><CheckCircle2 size={10} /> WATCHED</span>}
                        </div>
                     </div>
@@ -918,7 +918,7 @@ function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onVideoCl
             <h3 className="font-black text-xs tracking-widest text-slate-400">UP NEXT</h3>
             <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{activePlaylist.videos.length} Lectures</span>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y dark:divide-white/5 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden divide-y dark:divide-white/5 custom-scrollbar">
             {activePlaylist.videos.map((v: any, i: number) => (
               <div key={v.id} onClick={() => onVideoClick(v)} className={clsx("p-4 flex gap-3 cursor-pointer group transition-all", activeVideo.id === v.id ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
                  <div className="w-28 md:w-32 aspect-video rounded-xl overflow-hidden flex-shrink-0 relative border dark:border-white/5">
@@ -926,8 +926,8 @@ function VideoPlayerView({ activeVideo, activePlaylist, activeChannel, onVideoCl
                     <div className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{v.duration}</div>
                     {activeVideo.id === v.id && <div className="absolute inset-0 bg-indigo-600/30 flex items-center justify-center backdrop-blur-[2px]"><Play size={20} fill="currentColor" className="text-white" /></div>}
                  </div>
-                 <div className="flex-1 overflow-hidden">
-                   <h4 className={clsx("text-xs font-bold line-clamp-2 leading-tight transition-colors", activeVideo.id === v.id ? "text-indigo-600" : "group-hover:text-indigo-500")}>{i+1}. {v.title}</h4>
+                 <div className="flex-1 min-w-0 overflow-hidden">
+                   <h4 className={clsx("text-xs font-bold line-clamp-2 leading-tight transition-colors break-words", activeVideo.id === v.id ? "text-indigo-600" : "group-hover:text-indigo-500")}>{i+1}. {v.title}</h4>
                    <div className="flex items-center gap-2 mt-2">
                      {progressData[activePlaylist.id]?.watched?.includes(v.id) && <CheckCircle2 size={12} className="text-emerald-500" />}
                      <p className="text-[10px] text-slate-400 font-medium truncate">{activeChannel.name}</p>
